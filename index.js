@@ -1,12 +1,25 @@
 const express = require('express')
 const app = express()
 const cors = require('cors')
-require('dotenv').config()
+const mongoose = require('mongoose')
+
 
 app.use(cors())
 app.use(express.static('public'))
+app.use(express.urlencoded({ extended: true })) // <-- AÑADIDO
+app.use(express.json()) // <-- AÑADIDO
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
+});
+mongoose.connect(process.env.MONGO_URI, { 
+  useNewUrlParser: true, 
+  useUnifiedTopology: true 
+});
+
+const db = mongoose.connection;
+db.on('error', console.error.bind(console, 'Error de conexión a MongoDB:'));
+db.once('open', () => {
+  console.log("Conectado con éxito a la base de datos");
 });
 
 const userSchema = new mongoose.Schema({
@@ -24,12 +37,12 @@ const User = mongoose.model('User', userSchema);
 const Exercise = mongoose.model('Exercise', exerciseSchema);
 
 app.post('/api/users', async (req, res) => {
-  const userObj = new User({ username: req.body.username });
   try {
+    const userObj = new User({ username: req.body.username });
     const user = await userObj.save();
-    res.json(user);
+    res.json({ username: user.username, _id: user._id });
   } catch (err) {
-    res.send("Error guardando el usuario");
+    res.json({ error: "Could not save user" });
   }
 });
 
@@ -42,23 +55,23 @@ app.get('/api/users/:_id/logs', async (req, res) => {
   const { from, to, limit } = req.query;
   const id = req.params._id;
   const user = await User.findById(id);
-  if (!user) return res.send("Usuario no encontrado");
+  if (!user) return res.json({ error: "Usuario no encontrado" });
 
-  // Filtro de fecha
-  let dateObj = { user_id: id };
+  let filter = { user_id: id };
+  
   if (from || to) {
-    dateObj.date = {};
-    if (from) dateObj.date['$gte'] = new Date(from);
-    if (to) dateObj.date['$lte'] = new Date(to);
+    filter.date = {};
+    if (from) filter.date['$gte'] = new Date(from);
+    if (to) filter.date['$lte'] = new Date(to);
   }
 
-  // Consulta con límite
-  let exercises = await Exercise.find(dateObj).limit(+limit || 500);
+  // Ejecutamos la búsqueda con el límite
+  let exercises = await Exercise.find(filter).limit(+limit || 1000);
 
   const log = exercises.map(e => ({
     description: e.description,
     duration: e.duration,
-    date: e.date.toDateString()
+    date: e.date.toDateString() // Mongoose ya devuelve objetos Date si el esquema es correcto
   }));
 
   res.json({

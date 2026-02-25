@@ -11,7 +11,7 @@ app.use(express.json()) // <-- AÑADIDO
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
 });
-mongoose.connect(process.env.MONGO_URI, { 
+mongoose.connect(process.env.MONGO_URI, ...) 
   useNewUrlParser: true, 
   useUnifiedTopology: true 
 });

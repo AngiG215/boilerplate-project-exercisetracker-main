@@ -1,18 +1,20 @@
-const express = require('express')
-const app = express()
-const cors = require('cors')
+const express = require('express');
+const app = express();
+const cors = require('cors');
 require('dotenv').config();
 const mongoose = require('mongoose');
 
+app.use(cors());
+app.use(express.static('public'));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-app.use(cors())
-app.use(express.static('public'))
-app.use(express.urlencoded({ extended: true })) // <-- AÑADIDO
-app.use(express.json()) // <-- AÑADIDO
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/views/index.html')
+  res.sendFile(__dirname + '/views/index.html');
 });
-mongoose.connect(process.env.MONGO_URI, ...) 
+
+// CORRECCIÓN AQUÍ: Eliminados los "..." y añadida la llave {
+mongoose.connect(process.env.MONGO_URI, { 
   useNewUrlParser: true, 
   useUnifiedTopology: true 
 });
@@ -31,7 +33,7 @@ const exerciseSchema = new mongoose.Schema({
   user_id: { type: String, required: true },
   description: { type: String, required: true },
   duration: { type: Number, required: true },
-  date: Date,
+  date: { type: Date, default: Date.now } // Mejorado con default
 });
 
 const User = mongoose.model('User', userSchema);
@@ -55,32 +57,35 @@ app.get('/api/users', async (req, res) => {
 app.get('/api/users/:_id/logs', async (req, res) => {
   const { from, to, limit } = req.query;
   const id = req.params._id;
-  const user = await User.findById(id);
-  if (!user) return res.json({ error: "Usuario no encontrado" });
-
-  let filter = { user_id: id };
   
-  if (from || to) {
-    filter.date = {};
-    if (from) filter.date['$gte'] = new Date(from);
-    if (to) filter.date['$lte'] = new Date(to);
+  try {
+    const user = await User.findById(id);
+    if (!user) return res.json({ error: "Usuario no encontrado" });
+
+    let filter = { user_id: id };
+    if (from || to) {
+      filter.date = {};
+      if (from) filter.date['$gte'] = new Date(from);
+      if (to) filter.date['$lte'] = new Date(to);
+    }
+
+    let exercises = await Exercise.find(filter).limit(+limit || 1000);
+
+    const log = exercises.map(e => ({
+      description: e.description,
+      duration: e.duration,
+      date: e.date.toDateString()
+    }));
+
+    res.json({
+      username: user.username,
+      count: exercises.length,
+      _id: user._id,
+      log
+    });
+  } catch (err) {
+    res.json({ error: "Error al obtener los logs" });
   }
-
-  // Ejecutamos la búsqueda con el límite
-  let exercises = await Exercise.find(filter).limit(+limit || 1000);
-
-  const log = exercises.map(e => ({
-    description: e.description,
-    duration: e.duration,
-    date: e.date.toDateString() // Mongoose ya devuelve objetos Date si el esquema es correcto
-  }));
-
-  res.json({
-    username: user.username,
-    count: exercises.length,
-    _id: user._id,
-    log
-  });
 });
 
 app.post('/api/users/:_id/exercises', async (req, res) => {
@@ -89,7 +94,7 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
 
   try {
     const user = await User.findById(id);
-    if (!user) return res.send("Usuario no encontrado");
+    if (!user) return res.json({ error: "Usuario no encontrado" });
 
     const exerciseObj = new Exercise({
       user_id: id,
@@ -105,12 +110,13 @@ app.post('/api/users/:_id/exercises', async (req, res) => {
       username: user.username,
       description: exercise.description,
       duration: exercise.duration,
-      date: new Date(exercise.date).toDateString() // Formato dateString requerido
+      date: exercise.date.toDateString()
     });
   } catch (err) {
-    res.send("Error al guardar ejercicio");
+    res.json({ error: "Error al guardar ejercicio" });
   }
 });
+
 const listener = app.listen(process.env.PORT || 3000, () => {
-  console.log('Your app is listening on port ' + listener.address().port)
-})
+  console.log('Your app is listening on port ' + listener.address().port);
+});

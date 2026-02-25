@@ -13,8 +13,8 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html');
 });
 
-// CORRECCIÓN AQUÍ: Eliminados los "..." y añadida la llave {
-mongoose.connect(process.env.MONGO_URI, { 
+// Borra las opciones antiguas, Mongoose 8 ya no las necesita
+mongoose.connect(process.env.MONGO_URI);
   useNewUrlParser: true, 
   useUnifiedTopology: true 
 });

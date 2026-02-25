@@ -9,19 +9,22 @@ app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// ... arriba están tus app.use ...
+
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html');
 });
 
-// Borra las opciones antiguas, Mongoose 8 ya no las necesita
+// ESTA ES LA ÚNICA LÍNEA QUE NECESITAS PARA CONECTAR
 mongoose.connect(process.env.MONGO_URI);
-});
 
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'Error de conexión a MongoDB:'));
 db.once('open', () => {
   console.log("Conectado con éxito a la base de datos");
 });
+
+// ... abajo siguen tus esquemas ...
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true }

@@ -15,8 +15,6 @@ app.get('/', (req, res) => {
 
 // Borra las opciones antiguas, Mongoose 8 ya no las necesita
 mongoose.connect(process.env.MONGO_URI);
-  useNewUrlParser: true, 
-  useUnifiedTopology: true 
 });
 
 const db = mongoose.connection;
